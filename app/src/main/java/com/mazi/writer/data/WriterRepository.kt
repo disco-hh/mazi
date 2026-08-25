@@ -101,7 +101,9 @@ class WriterRepository(private val database: AppDatabase) {
         return ReplaceUndo(originals, replacements)
     }
 
-    suspend fun undoReplace(undo: ReplaceUndo) = database.withTransaction { undo.originals.forEach(chapters::save) }
+    suspend fun undoReplace(undo: ReplaceUndo) = database.withTransaction {
+        undo.originals.forEach { chapter -> chapters.save(chapter) }
+    }
 
     private fun countWords(text: String): Int {
         var count = 0
