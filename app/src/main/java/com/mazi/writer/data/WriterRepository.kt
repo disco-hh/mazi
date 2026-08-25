@@ -1,6 +1,7 @@
 package com.mazi.writer.data
 
 import androidx.room.withTransaction
+import com.mazi.writer.export.NovelBackup
 import kotlinx.coroutines.flow.Flow
 
 class WriterRepository(private val database: AppDatabase) {
@@ -13,6 +14,18 @@ class WriterRepository(private val database: AppDatabase) {
     data class BackupPayload(val book: Book, val volumes: List<Volume>, val chapters: List<Chapter>, val notes: List<Note>)
     suspend fun exportPayload(bookId: Long): Pair<Book, List<Chapter>>? = books.get(bookId)?.let { it to chapters.getForBook(bookId) }
     suspend fun backupPayload(bookId: Long): BackupPayload? = books.get(bookId)?.let { book -> BackupPayload(book, volumes.getForBook(bookId), chapters.getForBook(bookId), notes.getForBook(bookId)) }
+    suspend fun restore(project: NovelBackup.RestoredProject): Long {
+        val now = System.currentTimeMillis()
+        val newBookId = now
+        database.withTransaction {
+            books.save(Book(id = newBookId, title = "${project.title}（恢复副本）", author = project.author, summary = project.summary, genre = project.genre, targetWords = project.targetWords, dailyGoal = project.dailyGoal))
+            val volumeIds = project.volumes.associate { source -> source.sourceId to (now + source.position + 10_000) }
+            project.volumes.forEach { source -> volumes.save(Volume(volumeIds.getValue(source.sourceId), newBookId, source.title, source.position)) }
+            project.chapters.forEachIndexed { index, source -> chapters.save(Chapter(id = now + 100_000 + index, bookId = newBookId, volumeId = source.sourceVolumeId?.let(volumeIds::get), title = source.title, content = source.content, position = source.position, status = source.status, outline = source.outline, wordCount = countWords(source.content))) }
+            project.notes.forEachIndexed { index, source -> notes.save(Note(now + 200_000 + index, newBookId, source.title, source.detail, source.type, source.tags)) }
+        }
+        return newBookId
+    }
     fun observeVolumes(bookId: Long): Flow<List<Volume>> = volumes.observeForBook(bookId)
     fun observeChapters(bookId: Long): Flow<List<Chapter>> = chapters.observeForBook(bookId)
     suspend fun searchChapters(bookId: Long, query: String): List<Chapter> = chapters.search(bookId, query)

@@ -69,14 +69,18 @@ fun MaziApp(viewModel: WriterViewModel) {
 @Composable private fun Bookshelf(viewModel: WriterViewModel, onOpenWriting: () -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     var showCreate by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> restoreUri = uri }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 24.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("书架", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("所有故事都安静地留在这里", color = Muted) }; IconButton(onClick = {}) { Icon(Icons.Outlined.MoreHoriz, "更多") } } }
+        item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("书架", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("所有故事都安静地留在这里", color = Muted) }; IconButton(onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }) { Icon(Icons.Outlined.Restore, "恢复备份") } } }
         item { TodayCard() }
         item { Text("我的作品", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp)) }
         items(books, key = { it.id }) { book -> BookCard(book) { viewModel.selectBook(book.id); onOpenWriting() } }
         item { OutlinedButton(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建作品") } }
     }
     if (showCreate) CreateBookDialog(onDismiss = { showCreate = false }, onCreate = { viewModel.createBook(it); showCreate = false; onOpenWriting() })
+    restoreUri?.let { uri -> AlertDialog(onDismissRequest = { restoreUri = null }, title = { Text("恢复备份？") }, text = { Text("将以“恢复副本”新建作品，不会覆盖当前书架中的内容。") }, confirmButton = { TextButton(onClick = { viewModel.restore(context.contentResolver, uri); restoreUri = null }) { Text("恢复副本") } }, dismissButton = { TextButton(onClick = { restoreUri = null }) { Text("取消") } }) }
 }
 
 @Composable private fun TodayCard() {

@@ -68,4 +68,7 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     fun backup(resolver: ContentResolver, uri: Uri) = viewModelScope.launch {
         selectedBookId.value?.let { id -> repository.backupPayload(id)?.let { NovelBackup.write(resolver, uri, it) } }
     }
+    fun restore(resolver: ContentResolver, uri: Uri) = viewModelScope.launch {
+        selectBook(repository.restore(NovelBackup.read(resolver, uri)))
+    }
 }
