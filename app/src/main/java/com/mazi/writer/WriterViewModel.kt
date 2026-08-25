@@ -21,6 +21,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     val selectedChapter = combine(chapters, selectedChapterId) { list, id -> list.firstOrNull { it.id == id } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private var saveJob: Job? = null
+    private val _searchResults = MutableStateFlow<List<Chapter>>(emptyList())
+    val searchResults: StateFlow<List<Chapter>> = _searchResults.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -48,5 +50,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     }
     fun updateStatus(status: ChapterStatus) = viewModelScope.launch {
         selectedChapter.value?.let { repository.updateChapterStatus(it.id, status) }
+    }
+    fun search(query: String) = viewModelScope.launch {
+        _searchResults.value = selectedBookId.value?.takeIf { query.isNotBlank() }?.let { repository.searchChapters(it, query) }.orEmpty()
     }
 }

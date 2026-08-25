@@ -12,6 +12,7 @@ class WriterRepository(private val database: AppDatabase) {
     fun observeBooks(): Flow<List<Book>> = books.observeAll()
     fun observeVolumes(bookId: Long): Flow<List<Volume>> = volumes.observeForBook(bookId)
     fun observeChapters(bookId: Long): Flow<List<Chapter>> = chapters.observeForBook(bookId)
+    suspend fun searchChapters(bookId: Long, query: String): List<Chapter> = chapters.search(bookId, query)
     fun observeNotes(bookId: Long): Flow<List<Note>> = notes.observeForBook(bookId)
 
     suspend fun createBook(title: String): Long {

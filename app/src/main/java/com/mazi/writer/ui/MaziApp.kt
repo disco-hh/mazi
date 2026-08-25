@@ -93,30 +93,39 @@ fun MaziApp(viewModel: WriterViewModel) {
     val chapter = selected ?: chapters.firstOrNull()
     LaunchedEffect(chapter?.id) { chapter?.let { viewModel.selectChapter(it.id) } }
     var draft by remember(chapter?.id, chapter?.content) { mutableStateOf(chapter?.content.orEmpty()) }
+    var showSearch by remember { mutableStateOf(false) }
     val isDark = focused
     val bg = if (isDark) Ink else Paper
     val fg = if (isDark) Color(0xFFF0ECE3) else Ink
     Column(Modifier.fillMaxSize().background(bg)) {
-        if (!focused) EditorHeader(onFocus, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
+        if (!focused) EditorHeader(onFocus, { showSearch = true }, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
         Text("章节写作", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 13.sp, modifier = Modifier.padding(start = 28.dp, top = if (focused) 42.dp else 12.dp))
         Text(chapter?.title ?: "正在载入…", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 28.dp, vertical = 7.dp))
         HorizontalDivider(color = fg.copy(.1f), modifier = Modifier.padding(horizontal = 28.dp))
         TextField(value = draft, onValueChange = { draft = it; viewModel.updateContent(it) }, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp), colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedTextColor = fg, unfocusedTextColor = fg, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Serif, fontSize = 20.sp, lineHeight = 35.sp), placeholder = { Text("开始写作…", color = fg.copy(.35f)) })
         Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onFocus) { Icon(if (focused) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, "码字模式", tint = fg.copy(.7f)) }; Spacer(Modifier.width(4.dp)); Text("${chapter?.status?.label() ?: "草稿"} · ${draft.filterNot { it.isWhitespace() }.length} 字", color = fg.copy(.65f), fontSize = 13.sp); Spacer(Modifier.weight(1f)); Text("已自动保存", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 12.sp) }
     }
+    if (showSearch) SearchDialog(viewModel, onDismiss = { showSearch = false })
 }
 
-@Composable private fun EditorHeader(onFocus: () -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
+@Composable private fun EditorHeader(onFocus: () -> Unit, onSearch: () -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var newChapter by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box { IconButton(onClick = { expanded = true }) { Icon(Icons.Outlined.Menu, "章节目录") }; DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) { chapters.forEach { chapter -> DropdownMenuItem(text = { Text(chapter.title) }, onClick = { onSelect(chapter.id); expanded = false }) }; HorizontalDivider(); DropdownMenuItem(text = { Text("新建章节") }, leadingIcon = { Icon(Icons.Outlined.Add, null) }, onClick = { expanded = false; newChapter = true }) } }
         Text(title.ifBlank { "码字" }, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, "搜索当前作品") }
         Box { AssistChip(onClick = { statusExpanded = true }, label = { Text(status.label()) }); DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) { ChapterStatus.entries.forEach { item -> DropdownMenuItem(text = { Text(item.label()) }, onClick = { onStatus(item); statusExpanded = false }) } } }
         IconButton(onClick = onFocus) { Icon(Icons.Outlined.Fullscreen, "码字模式") }
     }
     if (newChapter) CreateBookDialog(onDismiss = { newChapter = false }, onCreate = { onCreate(it); newChapter = false })
+}
+
+@Composable private fun SearchDialog(viewModel: WriterViewModel, onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val results by viewModel.searchResults.collectAsStateWithLifecycle()
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("搜索当前作品") }, text = { Column { OutlinedTextField(value = query, onValueChange = { query = it; viewModel.search(it) }, label = { Text("关键词") }, singleLine = true); Spacer(Modifier.height(12.dp)); if (query.isNotBlank()) Text("找到 ${results.size} 个章节", color = Muted, fontSize = 13.sp); results.take(5).forEach { chapter -> TextButton(onClick = { viewModel.selectChapter(chapter.id); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth()) { Text(chapter.title); Text(chapter.content.take(42).ifBlank { "标题匹配" }, color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) } } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } })
 }
 
 private fun ChapterStatus.label() = when (this) { ChapterStatus.DRAFT -> "草稿"; ChapterStatus.REVISING -> "修改中"; ChapterStatus.DONE -> "完成" }

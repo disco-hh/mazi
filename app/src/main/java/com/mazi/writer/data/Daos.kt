@@ -24,6 +24,7 @@ interface VolumeDao {
 interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE bookId = :bookId AND deletedAt IS NULL ORDER BY position") fun observeForBook(bookId: Long): Flow<List<Chapter>>
     @Query("SELECT * FROM chapters WHERE id = :id") fun observe(id: Long): Flow<Chapter?>
+    @Query("SELECT * FROM chapters WHERE bookId = :bookId AND deletedAt IS NULL AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') ORDER BY position") suspend fun search(bookId: Long, query: String): List<Chapter>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(chapter: Chapter)
     @Query("SELECT COALESCE(MAX(position), 0) + 1000 FROM chapters WHERE bookId = :bookId") suspend fun nextPosition(bookId: Long): Int
     @Query("UPDATE chapters SET content = :content, wordCount = :wordCount, updatedAt = :updatedAt WHERE id = :id") suspend fun updateContent(id: Long, content: String, wordCount: Int, updatedAt: Long)
