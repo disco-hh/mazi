@@ -43,7 +43,7 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     fun selectChapter(id: Long) { selectedChapterId.value = id }
     fun createBook(title: String) = viewModelScope.launch { selectBook(repository.createBook(title)) }
     fun createChapter(title: String) = viewModelScope.launch {
-        selectedBookId.value?.let { selectedChapterId.value = repository.createChapter(it, title) }
+        selectedBookId.value?.let { selectedChapterId.value = repository.createChapter(it, title, selectedChapter.value?.volumeId) }
     }
     fun createVolume(title: String) = viewModelScope.launch {
         selectedBookId.value?.let { repository.createVolume(it, title) }
