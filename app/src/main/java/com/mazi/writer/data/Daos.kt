@@ -17,6 +17,7 @@ interface BookDao {
 @Dao
 interface VolumeDao {
     @Query("SELECT * FROM volumes WHERE bookId = :bookId ORDER BY position") fun observeForBook(bookId: Long): Flow<List<Volume>>
+    @Query("SELECT * FROM volumes WHERE bookId = :bookId ORDER BY position") suspend fun getForBook(bookId: Long): List<Volume>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(volume: Volume)
     @Query("SELECT COALESCE(MAX(position), 0) + 1000 FROM volumes WHERE bookId = :bookId") suspend fun nextPosition(bookId: Long): Int
 }
@@ -38,6 +39,7 @@ interface ChapterDao {
 @Dao
 interface NoteDao {
     @Query("SELECT * FROM notes WHERE bookId = :bookId AND deletedAt IS NULL ORDER BY type, title") fun observeForBook(bookId: Long): Flow<List<Note>>
+    @Query("SELECT * FROM notes WHERE bookId = :bookId AND deletedAt IS NULL ORDER BY type, title") suspend fun getForBook(bookId: Long): List<Note>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(note: Note)
     @Delete suspend fun delete(note: Note)
 }

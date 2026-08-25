@@ -99,6 +99,7 @@ fun MaziApp(viewModel: WriterViewModel) {
     val context = LocalContext.current
     var pendingExport by remember { mutableStateOf<ExportFormat?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri -> pendingExport?.let { format -> uri?.let { viewModel.export(context.contentResolver, it, format) } }; pendingExport = null }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let { viewModel.backup(context.contentResolver, it) } }
     val chapter = selected ?: chapters.firstOrNull()
     LaunchedEffect(chapter?.id) { chapter?.let { viewModel.selectChapter(it.id) } }
     var draft by remember(chapter?.id, chapter?.content) { mutableStateOf(chapter?.content.orEmpty()) }
@@ -107,7 +108,7 @@ fun MaziApp(viewModel: WriterViewModel) {
     val bg = if (isDark) Ink else Paper
     val fg = if (isDark) Color(0xFFF0ECE3) else Ink
     Column(Modifier.fillMaxSize().background(bg)) {
-        if (!focused) EditorHeader(onFocus, { showSearch = true }, { format -> pendingExport = format; exportLauncher.launch(BookExporter.fileName(activeBook ?: Book(0, "未命名作品"), format)) }, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
+        if (!focused) EditorHeader(onFocus, { showSearch = true }, { format -> pendingExport = format; exportLauncher.launch(BookExporter.fileName(activeBook ?: Book(0, "未命名作品"), format)) }, { backupLauncher.launch(com.mazi.writer.export.NovelBackup.fileName(activeBook ?: Book(0, "未命名作品"))) }, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
         Text("章节写作", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 13.sp, modifier = Modifier.padding(start = 28.dp, top = if (focused) 42.dp else 12.dp))
         Text(chapter?.title ?: "正在载入…", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 28.dp, vertical = 7.dp))
         HorizontalDivider(color = fg.copy(.1f), modifier = Modifier.padding(horizontal = 28.dp))
@@ -117,7 +118,7 @@ fun MaziApp(viewModel: WriterViewModel) {
     if (showSearch) SearchDialog(viewModel, onDismiss = { showSearch = false })
 }
 
-@Composable private fun EditorHeader(onFocus: () -> Unit, onSearch: () -> Unit, onExport: (ExportFormat) -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
+@Composable private fun EditorHeader(onFocus: () -> Unit, onSearch: () -> Unit, onExport: (ExportFormat) -> Unit, onBackup: () -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var newChapter by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
@@ -128,6 +129,7 @@ fun MaziApp(viewModel: WriterViewModel) {
         IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, "搜索当前作品") }
         Box { AssistChip(onClick = { statusExpanded = true }, label = { Text(status.label()) }); DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) { ChapterStatus.entries.forEach { item -> DropdownMenuItem(text = { Text(item.label()) }, onClick = { onStatus(item); statusExpanded = false }) } } }
         Box { IconButton(onClick = { exportExpanded = true }) { Icon(Icons.Outlined.FileDownload, "导出") }; DropdownMenu(expanded = exportExpanded, onDismissRequest = { exportExpanded = false }) { ExportFormat.entries.forEach { format -> DropdownMenuItem(text = { Text("导出 ${if (format == ExportFormat.TXT) "TXT" else "Markdown"}") }, onClick = { onExport(format); exportExpanded = false }) } } }
+        IconButton(onClick = onBackup) { Icon(Icons.Outlined.Backup, "完整备份") }
         IconButton(onClick = onFocus) { Icon(Icons.Outlined.Fullscreen, "码字模式") }
     }
     if (newChapter) CreateBookDialog(onDismiss = { newChapter = false }, onCreate = { onCreate(it); newChapter = false })

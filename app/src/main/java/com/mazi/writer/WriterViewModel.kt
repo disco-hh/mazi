@@ -7,6 +7,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import com.mazi.writer.export.BookExporter
 import com.mazi.writer.export.ExportFormat
+import com.mazi.writer.export.NovelBackup
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -63,5 +64,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     }
     fun export(resolver: ContentResolver, uri: Uri, format: ExportFormat) = viewModelScope.launch {
         selectedBookId.value?.let { id -> repository.exportPayload(id)?.let { (book, chapters) -> BookExporter.write(resolver, uri, BookExporter.render(book, chapters, format)) } }
+    }
+    fun backup(resolver: ContentResolver, uri: Uri) = viewModelScope.launch {
+        selectedBookId.value?.let { id -> repository.backupPayload(id)?.let { NovelBackup.write(resolver, uri, it) } }
     }
 }
