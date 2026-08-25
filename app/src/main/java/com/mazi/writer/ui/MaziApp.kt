@@ -45,7 +45,7 @@ fun MaziApp(viewModel: WriterViewModel) {
                 when (tab) {
                     0 -> Bookshelf(viewModel, onOpenWriting = { tab = 1 })
                     1 -> Writing(onFocus = { focusMode = !focusMode }, focused = focusMode, viewModel = viewModel)
-                    else -> Library()
+                    else -> Library(viewModel)
                 }
             }
         }
@@ -116,9 +116,16 @@ fun MaziApp(viewModel: WriterViewModel) {
     if (newChapter) CreateBookDialog(onDismiss = { newChapter = false }, onCreate = { onCreate(it); newChapter = false })
 }
 
-@Composable private fun Library() {
-    val notes = listOf(NoteUi("林晚", "二十七岁，旧书店店主。", NoteType.CHARACTER), NoteUi("雾港", "终年多雨的海边小城。", NoteType.PLACE), NoteUi("归信", "每逢雨夜出现的无名来信。", NoteType.SETTING))
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 24.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { item { Text("资料库", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("让故事里的每件事都有来处", color = Muted, modifier = Modifier.padding(top = 3.dp, bottom = 18.dp)) }; item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { FilterChip(selected = true, onClick = {}, label = { Text("全部  3") }); FilterChip(selected = false, onClick = {}, label = { Text("人物") }); FilterChip(selected = false, onClick = {}, label = { Text("地点") }) } }; items(notes) { NoteCard(it) }; item { FilledTonalButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建资料卡") } } }
+@Composable private fun Library(viewModel: WriterViewModel) {
+    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    var showCreate by remember { mutableStateOf(false) }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 24.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { item { Text("资料库", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("让故事里的每件事都有来处", color = Muted, modifier = Modifier.padding(top = 3.dp, bottom = 18.dp)) }; item { Text("当前作品 · ${notes.size} 张资料卡", color = Moss, fontSize = 13.sp) }; items(notes, key = { it.id }) { NoteCard(NoteUi(it.title, it.detail, it.type)) }; item { FilledTonalButton(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建资料卡") } } }
+    if (showCreate) CreateNoteDialog(onDismiss = { showCreate = false }, onCreate = { title, detail, type -> viewModel.createNote(title, detail, type); showCreate = false })
+}
+
+@Composable private fun CreateNoteDialog(onDismiss: () -> Unit, onCreate: (String, String, NoteType) -> Unit) {
+    var title by remember { mutableStateOf("") }; var detail by remember { mutableStateOf("") }; var type by remember { mutableStateOf(NoteType.CHARACTER) }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("新建资料卡") }, text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("名称") }, singleLine = true); OutlinedTextField(value = detail, onValueChange = { detail = it }, label = { Text("描述") }); Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { NoteType.entries.forEach { item -> FilterChip(selected = type == item, onClick = { type = item }, label = { Text(when (item) { NoteType.CHARACTER -> "人物"; NoteType.PLACE -> "地点"; NoteType.SETTING -> "设定" }) }) } } } }, confirmButton = { TextButton(onClick = { onCreate(title, detail, type) }) { Text("保存") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } })
 }
 
 @Composable private fun NoteCard(note: NoteUi) { val (icon, color, type) = when(note.type) { NoteType.CHARACTER -> Triple(Icons.Outlined.Person, Moss, "人物"); NoteType.PLACE -> Triple(Icons.Outlined.Place, Amber, "地点"); NoteType.SETTING -> Triple(Icons.Outlined.AutoAwesome, Color(0xFF75728B), "设定") }; Card(shape = RoundedCornerShape(17.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) { Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Surface(color = color.copy(.13f), shape = RoundedCornerShape(12.dp), modifier = Modifier.size(44.dp)) { Icon(icon, null, tint = color, modifier = Modifier.padding(11.dp)) }; Spacer(Modifier.width(14.dp)); Column { Text(note.title, fontWeight = FontWeight.SemiBold); Text(note.detail, color = Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(type, color = color, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp)) } } } }

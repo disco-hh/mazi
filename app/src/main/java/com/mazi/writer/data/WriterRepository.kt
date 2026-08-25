@@ -32,6 +32,11 @@ class WriterRepository(private val database: AppDatabase) {
         return id
     }
 
+    suspend fun createNote(bookId: Long, title: String, detail: String, type: NoteType) {
+        notes.save(Note(System.currentTimeMillis(), bookId, title.ifBlank { "未命名资料" }, detail, type))
+        books.touch(bookId, System.currentTimeMillis())
+    }
+
     suspend fun saveChapter(chapter: Chapter) {
         chapters.save(chapter)
         books.touch(chapter.bookId, System.currentTimeMillis())
