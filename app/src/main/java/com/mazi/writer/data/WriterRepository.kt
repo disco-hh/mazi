@@ -10,6 +10,7 @@ class WriterRepository(private val database: AppDatabase) {
     private val notes = database.noteDao()
 
     fun observeBooks(): Flow<List<Book>> = books.observeAll()
+    suspend fun exportPayload(bookId: Long): Pair<Book, List<Chapter>>? = books.get(bookId)?.let { it to chapters.getForBook(bookId) }
     fun observeVolumes(bookId: Long): Flow<List<Volume>> = volumes.observeForBook(bookId)
     fun observeChapters(bookId: Long): Flow<List<Chapter>> = chapters.observeForBook(bookId)
     suspend fun searchChapters(bookId: Long, query: String): List<Chapter> = chapters.search(bookId, query)

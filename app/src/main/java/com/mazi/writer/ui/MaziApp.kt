@@ -1,6 +1,8 @@
 package com.mazi.writer.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -24,6 +27,8 @@ import com.mazi.writer.data.Book
 import com.mazi.writer.data.ChapterStatus
 import com.mazi.writer.data.NoteType
 import com.mazi.writer.WriterViewModel
+import com.mazi.writer.export.BookExporter
+import com.mazi.writer.export.ExportFormat
 
 private val Ink = Color(0xFF171714)
 private val Paper = Color(0xFFF5F1E9)
@@ -90,6 +95,10 @@ fun MaziApp(viewModel: WriterViewModel) {
 @Composable private fun Writing(onFocus: () -> Unit, focused: Boolean, viewModel: WriterViewModel) {
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
     val selected by viewModel.selectedChapter.collectAsStateWithLifecycle()
+    val activeBook by viewModel.activeBook.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var pendingExport by remember { mutableStateOf<ExportFormat?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri -> pendingExport?.let { format -> uri?.let { viewModel.export(context.contentResolver, it, format) } }; pendingExport = null }
     val chapter = selected ?: chapters.firstOrNull()
     LaunchedEffect(chapter?.id) { chapter?.let { viewModel.selectChapter(it.id) } }
     var draft by remember(chapter?.id, chapter?.content) { mutableStateOf(chapter?.content.orEmpty()) }
@@ -98,7 +107,7 @@ fun MaziApp(viewModel: WriterViewModel) {
     val bg = if (isDark) Ink else Paper
     val fg = if (isDark) Color(0xFFF0ECE3) else Ink
     Column(Modifier.fillMaxSize().background(bg)) {
-        if (!focused) EditorHeader(onFocus, { showSearch = true }, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
+        if (!focused) EditorHeader(onFocus, { showSearch = true }, { format -> pendingExport = format; exportLauncher.launch(BookExporter.fileName(activeBook ?: Book(0, "未命名作品"), format)) }, chapter?.title.orEmpty(), chapter?.status ?: ChapterStatus.DRAFT, chapters, viewModel::selectChapter, viewModel::createChapter, viewModel::updateStatus)
         Text("章节写作", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 13.sp, modifier = Modifier.padding(start = 28.dp, top = if (focused) 42.dp else 12.dp))
         Text(chapter?.title ?: "正在载入…", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 28.dp, vertical = 7.dp))
         HorizontalDivider(color = fg.copy(.1f), modifier = Modifier.padding(horizontal = 28.dp))
@@ -108,15 +117,17 @@ fun MaziApp(viewModel: WriterViewModel) {
     if (showSearch) SearchDialog(viewModel, onDismiss = { showSearch = false })
 }
 
-@Composable private fun EditorHeader(onFocus: () -> Unit, onSearch: () -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
+@Composable private fun EditorHeader(onFocus: () -> Unit, onSearch: () -> Unit, onExport: (ExportFormat) -> Unit, title: String, status: ChapterStatus, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit, onStatus: (ChapterStatus) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var newChapter by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
+    var exportExpanded by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box { IconButton(onClick = { expanded = true }) { Icon(Icons.Outlined.Menu, "章节目录") }; DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) { chapters.forEach { chapter -> DropdownMenuItem(text = { Text(chapter.title) }, onClick = { onSelect(chapter.id); expanded = false }) }; HorizontalDivider(); DropdownMenuItem(text = { Text("新建章节") }, leadingIcon = { Icon(Icons.Outlined.Add, null) }, onClick = { expanded = false; newChapter = true }) } }
         Text(title.ifBlank { "码字" }, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, "搜索当前作品") }
         Box { AssistChip(onClick = { statusExpanded = true }, label = { Text(status.label()) }); DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) { ChapterStatus.entries.forEach { item -> DropdownMenuItem(text = { Text(item.label()) }, onClick = { onStatus(item); statusExpanded = false }) } } }
+        Box { IconButton(onClick = { exportExpanded = true }) { Icon(Icons.Outlined.FileDownload, "导出") }; DropdownMenu(expanded = exportExpanded, onDismissRequest = { exportExpanded = false }) { ExportFormat.entries.forEach { format -> DropdownMenuItem(text = { Text("导出 ${if (format == ExportFormat.TXT) "TXT" else "Markdown"}") }, onClick = { onExport(format); exportExpanded = false }) } } }
         IconButton(onClick = onFocus) { Icon(Icons.Outlined.Fullscreen, "码字模式") }
     }
     if (newChapter) CreateBookDialog(onDismiss = { newChapter = false }, onCreate = { onCreate(it); newChapter = false })

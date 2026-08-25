@@ -8,6 +8,7 @@ interface BookDao {
     @Query("SELECT COUNT(*) FROM books") suspend fun count(): Int
     @Query("SELECT * FROM books WHERE isArchived = 0 AND deletedAt IS NULL ORDER BY updatedAt DESC") fun observeAll(): Flow<List<Book>>
     @Query("SELECT * FROM books WHERE id = :id") fun observe(id: Long): Flow<Book?>
+    @Query("SELECT * FROM books WHERE id = :id") suspend fun get(id: Long): Book?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(book: Book)
     @Query("UPDATE books SET updatedAt = :timestamp WHERE id = :id") suspend fun touch(id: Long, timestamp: Long)
     @Delete suspend fun delete(book: Book)
@@ -24,6 +25,7 @@ interface VolumeDao {
 interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE bookId = :bookId AND deletedAt IS NULL ORDER BY position") fun observeForBook(bookId: Long): Flow<List<Chapter>>
     @Query("SELECT * FROM chapters WHERE id = :id") fun observe(id: Long): Flow<Chapter?>
+    @Query("SELECT * FROM chapters WHERE bookId = :bookId AND deletedAt IS NULL ORDER BY position") suspend fun getForBook(bookId: Long): List<Chapter>
     @Query("SELECT * FROM chapters WHERE bookId = :bookId AND deletedAt IS NULL AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') ORDER BY position") suspend fun search(bookId: Long, query: String): List<Chapter>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(chapter: Chapter)
     @Query("SELECT COALESCE(MAX(position), 0) + 1000 FROM chapters WHERE bookId = :bookId") suspend fun nextPosition(bookId: Long): Int
