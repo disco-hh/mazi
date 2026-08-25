@@ -12,7 +12,9 @@ import com.mazi.writer.ui.MaziApp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val database = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "mazi.db").build()
+        val database = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "mazi.db")
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
         val viewModel = ViewModelProvider(this, WriterViewModelFactory(WriterRepository(database)))[WriterViewModel::class.java]
         setContent { MaziApp(viewModel) }
     }

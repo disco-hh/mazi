@@ -16,7 +16,7 @@ class WriterRepository(private val database: AppDatabase) {
         val id = System.currentTimeMillis()
         database.withTransaction {
             books.save(Book(id = id, title = title))
-            chapters.save(Chapter(id = id + 1, bookId = id, title = "第一章", content = "", position = 0))
+            chapters.save(Chapter(id = id + 1, bookId = id, title = "第 1 章", content = "", position = 1_000))
         }
         return id
     }
@@ -27,7 +27,7 @@ class WriterRepository(private val database: AppDatabase) {
 
     suspend fun createChapter(bookId: Long, title: String): Long {
         val id = System.currentTimeMillis()
-        chapters.save(Chapter(id, bookId, title.ifBlank { "新章节" }, "", chapters.nextPosition(bookId)))
+        chapters.save(Chapter(id = id, bookId = bookId, title = title.ifBlank { "新章节" }, content = "", position = chapters.nextPosition(bookId)))
         books.touch(bookId, System.currentTimeMillis())
         return id
     }
@@ -44,7 +44,7 @@ class WriterRepository(private val database: AppDatabase) {
 
     suspend fun updateChapterContent(chapter: Chapter, content: String) {
         database.withTransaction {
-            chapters.updateContent(chapter.id, content)
+            chapters.updateContent(chapter.id, content, countWords(content), System.currentTimeMillis())
             books.touch(chapter.bookId, System.currentTimeMillis())
         }
     }
@@ -54,4 +54,17 @@ class WriterRepository(private val database: AppDatabase) {
     }
 
     suspend fun saveNote(note: Note) = notes.save(note)
+
+    private fun countWords(text: String): Int {
+        var count = 0
+        var inLatinWord = false
+        text.forEach { char ->
+            when {
+                char.isLetterOrDigit() && char.code > 0x7F -> { count++; inLatinWord = false }
+                char.isLetterOrDigit() -> if (!inLatinWord) { count++; inLatinWord = true }
+                else -> inLatinWord = false
+            }
+        }
+        return count
+    }
 }
