@@ -18,9 +18,19 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private var saveJob: Job? = null
 
-    fun selectBook(id: Long) { selectedBookId.value = id }
+    init {
+        viewModelScope.launch {
+            repository.ensureStarterBook()
+            repository.observeBooks().filter { it.isNotEmpty() }.first().let { selectBook(it.first().id) }
+        }
+    }
+
+    fun selectBook(id: Long) { selectedBookId.value = id; selectedChapterId.value = null }
     fun selectChapter(id: Long) { selectedChapterId.value = id }
     fun createBook(title: String) = viewModelScope.launch { selectBook(repository.createBook(title)) }
+    fun createChapter(title: String) = viewModelScope.launch {
+        selectedBookId.value?.let { selectedChapterId.value = repository.createChapter(it, title) }
+    }
     fun updateContent(content: String) {
         val chapter = selectedChapter.value ?: return
         saveJob?.cancel()

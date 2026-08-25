@@ -21,6 +21,17 @@ class WriterRepository(private val database: AppDatabase) {
         return id
     }
 
+    suspend fun ensureStarterBook() {
+        if (books.count() == 0) createBook("未命名作品")
+    }
+
+    suspend fun createChapter(bookId: Long, title: String): Long {
+        val id = System.currentTimeMillis()
+        chapters.save(Chapter(id, bookId, title.ifBlank { "新章节" }, "", chapters.nextPosition(bookId)))
+        books.touch(bookId, System.currentTimeMillis())
+        return id
+    }
+
     suspend fun saveChapter(chapter: Chapter) {
         chapters.save(chapter)
         books.touch(chapter.bookId, System.currentTimeMillis())

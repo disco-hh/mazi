@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mazi.writer.data.ChapterStatus
+import com.mazi.writer.data.Book
 import com.mazi.writer.data.NoteType
 import com.mazi.writer.WriterViewModel
 
@@ -30,8 +30,6 @@ private val Muted = Color(0xFF756F66)
 private val Moss = Color(0xFF577262)
 private val Amber = Color(0xFFC58A45)
 
-private data class ChapterUi(val title: String, val preview: String, val words: Int, val status: ChapterStatus)
-private data class BookUi(val title: String, val detail: String, val words: String, val progress: Float, val tint: Color)
 private data class NoteUi(val title: String, val detail: String, val type: NoteType)
 
 @Composable
@@ -45,7 +43,7 @@ fun MaziApp(viewModel: WriterViewModel) {
         ) { pad ->
             Box(Modifier.fillMaxSize().padding(if (focusMode) PaddingValues(0.dp) else pad)) {
                 when (tab) {
-                    0 -> Bookshelf(onOpenWriting = { tab = 1 })
+                    0 -> Bookshelf(viewModel, onOpenWriting = { tab = 1 })
                     1 -> Writing(onFocus = { focusMode = !focusMode }, focused = focusMode, viewModel = viewModel)
                     else -> Library()
                 }
@@ -62,27 +60,30 @@ fun MaziApp(viewModel: WriterViewModel) {
     }
 }
 
-@Composable private fun Bookshelf(onOpenWriting: () -> Unit) {
-    val books = listOf(
-        BookUi("长夜与微光", "上次编辑于 今天 22:18", "34,286 字", .68f, Color(0xFF5D756B)),
-        BookUi("冬日来信", "上次编辑于 昨天", "12,420 字", .35f, Color(0xFF997252)),
-        BookUi("未命名故事", "创建于 8 月 21 日", "0 字", 0f, Color(0xFF7A788D))
-    )
+@Composable private fun Bookshelf(viewModel: WriterViewModel, onOpenWriting: () -> Unit) {
+    val books by viewModel.books.collectAsStateWithLifecycle()
+    var showCreate by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 24.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("书架", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("所有故事都安静地留在这里", color = Muted) }; IconButton(onClick = {}) { Icon(Icons.Outlined.MoreHoriz, "更多") } } }
         item { TodayCard() }
         item { Text("我的作品", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp)) }
-        items(books) { BookCard(it) }
-        item { OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建作品") } }
+        items(books, key = { it.id }) { book -> BookCard(book) { viewModel.selectBook(book.id); onOpenWriting() } }
+        item { OutlinedButton(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建作品") } }
     }
+    if (showCreate) CreateBookDialog(onDismiss = { showCreate = false }, onCreate = { viewModel.createBook(it); showCreate = false; onOpenWriting() })
 }
 
 @Composable private fun TodayCard() {
     Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(22.dp)) { Row(Modifier.padding(20.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("今日码字", color = Color(0xFFFFF9F0), fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(10.dp)); Text("682", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold); Text("/ 1,000 字", color = Color(0xFFBDB8AF)); Spacer(Modifier.height(12.dp)); LinearProgressIndicator(progress = { .682f }, color = Amber, trackColor = Color(0xFF393732), modifier = Modifier.fillMaxWidth().height(6.dp)) }; Spacer(Modifier.width(24.dp)); Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("7", color = Amber, fontSize = 29.sp, fontWeight = FontWeight.Bold); Text("连续天数", color = Color(0xFFBDB8AF), fontSize = 12.sp) } } }
 }
 
-@Composable private fun BookCard(book: BookUi) {
-    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(0.dp)) { Row(Modifier.padding(14.dp).fillMaxWidth()) { Box(Modifier.size(width = 65.dp, height = 86.dp).background(book.tint, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.AutoStories, null, tint = Color.White.copy(.85f)) }; Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(book.title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp); Spacer(Modifier.height(5.dp)); Text(book.detail, color = Muted, fontSize = 12.sp); Spacer(Modifier.height(14.dp)); Row(verticalAlignment = Alignment.CenterVertically) { LinearProgressIndicator(progress = { book.progress }, color = book.tint, trackColor = Paper, modifier = Modifier.weight(1f).height(5.dp)); Spacer(Modifier.width(10.dp)); Text(book.words, fontSize = 12.sp, color = Muted) } } } }
+@Composable private fun BookCard(book: Book, onClick: () -> Unit) {
+    Card(modifier = Modifier.clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(0.dp)) { Row(Modifier.padding(14.dp).fillMaxWidth()) { Box(Modifier.size(width = 65.dp, height = 86.dp).background(Moss, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.AutoStories, null, tint = Color.White.copy(.85f)) }; Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(book.title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp); Spacer(Modifier.height(5.dp)); Text("本地离线作品", color = Muted, fontSize = 12.sp); Spacer(Modifier.height(14.dp)); Row(verticalAlignment = Alignment.CenterVertically) { LinearProgressIndicator(progress = { 0f }, color = Moss, trackColor = Paper, modifier = Modifier.weight(1f).height(5.dp)); Spacer(Modifier.width(10.dp)); Text("离线保存", fontSize = 12.sp, color = Muted) } } } }
+}
+
+@Composable private fun CreateBookDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var title by remember { mutableStateOf("") }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("新建作品") }, text = { OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("作品名称") }, singleLine = true) }, confirmButton = { TextButton(onClick = { onCreate(title.ifBlank { "未命名作品" }) }) { Text("创建") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } })
 }
 
 @Composable private fun Writing(onFocus: () -> Unit, focused: Boolean, viewModel: WriterViewModel) {
@@ -95,16 +96,25 @@ fun MaziApp(viewModel: WriterViewModel) {
     val bg = if (isDark) Ink else Paper
     val fg = if (isDark) Color(0xFFF0ECE3) else Ink
     Column(Modifier.fillMaxSize().background(bg)) {
-        if (!focused) EditorHeader(onFocus)
-        Text("第一卷 · 归途", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 13.sp, modifier = Modifier.padding(start = 28.dp, top = if (focused) 42.dp else 12.dp))
-        Text("第一章 雨落之前", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 28.dp, vertical = 7.dp))
+        if (!focused) EditorHeader(onFocus, chapter?.title.orEmpty(), chapters, viewModel::selectChapter, viewModel::createChapter)
+        Text("章节写作", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 13.sp, modifier = Modifier.padding(start = 28.dp, top = if (focused) 42.dp else 12.dp))
+        Text(chapter?.title ?: "正在载入…", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 28.dp, vertical = 7.dp))
         HorizontalDivider(color = fg.copy(.1f), modifier = Modifier.padding(horizontal = 28.dp))
         TextField(value = draft, onValueChange = { draft = it; viewModel.updateContent(it) }, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp), colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedTextColor = fg, unfocusedTextColor = fg, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Serif, fontSize = 20.sp, lineHeight = 35.sp), placeholder = { Text("开始写作…", color = fg.copy(.35f)) })
         Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onFocus) { Icon(if (focused) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, "码字模式", tint = fg.copy(.7f)) }; Spacer(Modifier.width(4.dp)); Text("${draft.filterNot { it.isWhitespace() }.length} 字", color = fg.copy(.65f), fontSize = 13.sp); Spacer(Modifier.weight(1f)); Text("已自动保存", color = if (isDark) Color(0xFFA6B6AC) else Moss, fontSize = 12.sp) }
     }
 }
 
-@Composable private fun EditorHeader(onFocus: () -> Unit) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = {}) { Icon(Icons.Outlined.Menu, "章节目录") }; Text("长夜与微光", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f)); IconButton(onClick = {}) { Icon(Icons.Outlined.Search, "搜索") }; IconButton(onClick = onFocus) { Icon(Icons.Outlined.Fullscreen, "码字模式") } } }
+@Composable private fun EditorHeader(onFocus: () -> Unit, title: String, chapters: List<com.mazi.writer.data.Chapter>, onSelect: (Long) -> Unit, onCreate: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    var newChapter by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box { IconButton(onClick = { expanded = true }) { Icon(Icons.Outlined.Menu, "章节目录") }; DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) { chapters.forEach { chapter -> DropdownMenuItem(text = { Text(chapter.title) }, onClick = { onSelect(chapter.id); expanded = false }) }; HorizontalDivider(); DropdownMenuItem(text = { Text("新建章节") }, leadingIcon = { Icon(Icons.Outlined.Add, null) }, onClick = { expanded = false; newChapter = true }) } }
+        Text(title.ifBlank { "码字" }, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        IconButton(onClick = onFocus) { Icon(Icons.Outlined.Fullscreen, "码字模式") }
+    }
+    if (newChapter) CreateBookDialog(onDismiss = { newChapter = false }, onCreate = { onCreate(it); newChapter = false })
+}
 
 @Composable private fun Library() {
     val notes = listOf(NoteUi("林晚", "二十七岁，旧书店店主。", NoteType.CHARACTER), NoteUi("雾港", "终年多雨的海边小城。", NoteType.PLACE), NoteUi("归信", "每逢雨夜出现的无名来信。", NoteType.SETTING))

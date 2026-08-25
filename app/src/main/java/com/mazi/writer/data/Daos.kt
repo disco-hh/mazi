@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BookDao {
+    @Query("SELECT COUNT(*) FROM books") suspend fun count(): Int
     @Query("SELECT * FROM books ORDER BY updatedAt DESC") fun observeAll(): Flow<List<Book>>
     @Query("SELECT * FROM books WHERE id = :id") fun observe(id: Long): Flow<Book?>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(book: Book)
@@ -17,6 +18,7 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY position") fun observeForBook(bookId: Long): Flow<List<Chapter>>
     @Query("SELECT * FROM chapters WHERE id = :id") fun observe(id: Long): Flow<Chapter?>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(chapter: Chapter)
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM chapters WHERE bookId = :bookId") suspend fun nextPosition(bookId: Long): Int
     @Query("UPDATE chapters SET content = :content WHERE id = :id") suspend fun updateContent(id: Long, content: String)
     @Query("UPDATE chapters SET position = :position WHERE id = :id") suspend fun updatePosition(id: Long, position: Int)
     @Delete suspend fun delete(chapter: Chapter)
