@@ -54,7 +54,7 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     fun updateContent(content: String) {
         val chapter = selectedChapter.value ?: return
         saveJob?.cancel()
-        saveJob = viewModelScope.launch { delay(450); repository.updateChapterContent(chapter, content) }
+        saveJob = viewModelScope.launch { delay(800); repository.updateChapterContent(chapter, content) }
     }
     fun updateStatus(status: ChapterStatus) = viewModelScope.launch {
         selectedChapter.value?.let { repository.updateChapterStatus(it.id, status) }
