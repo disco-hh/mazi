@@ -12,6 +12,7 @@ class WriterRepository(private val database: AppDatabase) {
     private val notes = database.noteDao()
 
     fun observeBooks(): Flow<List<Book>> = books.observeAll()
+    fun observeBooksWithStats(): Flow<List<BookWithStats>> = books.observeWithStats()
     data class BackupPayload(val book: Book, val volumes: List<Volume>, val chapters: List<Chapter>, val notes: List<Note>)
     suspend fun exportPayload(bookId: Long): Pair<Book, List<Chapter>>? = books.get(bookId)?.let { it to chapters.getForBook(bookId) }
     suspend fun backupPayload(bookId: Long): BackupPayload? = books.get(bookId)?.let { book -> BackupPayload(book, volumes.getForBook(bookId), chapters.getForBook(bookId), notes.getForBook(bookId)) }

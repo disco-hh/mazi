@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     val books = repository.observeBooks().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val booksWithStats = repository.observeBooksWithStats().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val selectedBookId = MutableStateFlow<Long?>(null)
     val activeBookId: StateFlow<Long?> = selectedBookId.asStateFlow()
     val activeBook = combine(books, selectedBookId) { list, id -> list.firstOrNull { it.id == id } }

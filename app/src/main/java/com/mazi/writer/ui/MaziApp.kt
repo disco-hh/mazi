@@ -67,7 +67,7 @@ fun MaziApp(viewModel: WriterViewModel) {
 }
 
 @Composable private fun Bookshelf(viewModel: WriterViewModel, onOpenWriting: () -> Unit) {
-    val books by viewModel.books.collectAsStateWithLifecycle()
+    val books by viewModel.booksWithStats.collectAsStateWithLifecycle()
     var showCreate by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -76,7 +76,7 @@ fun MaziApp(viewModel: WriterViewModel) {
         item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("书架", fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("所有故事都安静地留在这里", color = Muted) }; IconButton(onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }) { Icon(Icons.Outlined.Restore, "恢复备份") } } }
         item { TodayCard() }
         item { Text("我的作品", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp)) }
-        items(books, key = { it.id }) { book -> BookCard(book) { viewModel.selectBook(book.id); onOpenWriting() } }
+        items(books, key = { it.book.id }) { item -> BookCard(item) { viewModel.selectBook(item.book.id); onOpenWriting() } }
         item { OutlinedButton(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("新建作品") } }
     }
     if (showCreate) CreateBookDialog(onDismiss = { showCreate = false }, onCreate = { viewModel.createBook(it); showCreate = false; onOpenWriting() })
@@ -87,7 +87,8 @@ fun MaziApp(viewModel: WriterViewModel) {
     Card(colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(22.dp)) { Row(Modifier.padding(20.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("今日码字", color = Color(0xFFFFF9F0), fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(10.dp)); Text("682", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold); Text("/ 1,000 字", color = Color(0xFFBDB8AF)); Spacer(Modifier.height(12.dp)); LinearProgressIndicator(progress = { .682f }, color = Amber, trackColor = Color(0xFF393732), modifier = Modifier.fillMaxWidth().height(6.dp)) }; Spacer(Modifier.width(24.dp)); Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("7", color = Amber, fontSize = 29.sp, fontWeight = FontWeight.Bold); Text("连续天数", color = Color(0xFFBDB8AF), fontSize = 12.sp) } } }
 }
 
-@Composable private fun BookCard(book: Book, onClick: () -> Unit) {
+@Composable private fun BookCard(item: com.mazi.writer.data.BookWithStats, onClick: () -> Unit) {
+    val book = item.book
     Card(modifier = Modifier.clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(0.dp)) { Row(Modifier.padding(14.dp).fillMaxWidth()) { Box(Modifier.size(width = 65.dp, height = 86.dp).background(Moss, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.AutoStories, null, tint = Color.White.copy(.85f)) }; Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(book.title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp); Spacer(Modifier.height(5.dp)); Text("本地离线作品", color = Muted, fontSize = 12.sp); Spacer(Modifier.height(14.dp)); Row(verticalAlignment = Alignment.CenterVertically) { LinearProgressIndicator(progress = { 0f }, color = Moss, trackColor = Paper, modifier = Modifier.weight(1f).height(5.dp)); Spacer(Modifier.width(10.dp)); Text("离线保存", fontSize = 12.sp, color = Muted) } } } }
 }
 

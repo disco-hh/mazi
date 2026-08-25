@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface BookDao {
     @Query("SELECT COUNT(*) FROM books") suspend fun count(): Int
     @Query("SELECT * FROM books WHERE isArchived = 0 AND deletedAt IS NULL ORDER BY updatedAt DESC") fun observeAll(): Flow<List<Book>>
+    @Query("SELECT books.*, COALESCE(SUM(chapters.wordCount), 0) AS totalWords FROM books LEFT JOIN chapters ON chapters.bookId = books.id AND chapters.deletedAt IS NULL WHERE books.isArchived = 0 AND books.deletedAt IS NULL GROUP BY books.id ORDER BY books.updatedAt DESC") fun observeWithStats(): Flow<List<BookWithStats>>
     @Query("SELECT * FROM books WHERE id = :id") fun observe(id: Long): Flow<Book?>
     @Query("SELECT * FROM books WHERE id = :id") suspend fun get(id: Long): Book?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(book: Book)

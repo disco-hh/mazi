@@ -3,6 +3,7 @@ package com.mazi.writer.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Embedded
 
 enum class ChapterStatus { DRAFT, REVISING, DONE }
 enum class NoteType { OUTLINE, CHARACTER, PLACE, SETTING, TIMELINE }
@@ -64,3 +65,5 @@ data class Note(
     val updatedAt: Long = System.currentTimeMillis(),
     val deletedAt: Long? = null
 )
+
+data class BookWithStats(@Embedded val book: Book, val totalWords: Int)
