@@ -5,10 +5,12 @@ import kotlinx.coroutines.flow.Flow
 
 class WriterRepository(private val database: AppDatabase) {
     private val books = database.bookDao()
+    private val volumes = database.volumeDao()
     private val chapters = database.chapterDao()
     private val notes = database.noteDao()
 
     fun observeBooks(): Flow<List<Book>> = books.observeAll()
+    fun observeVolumes(bookId: Long): Flow<List<Volume>> = volumes.observeForBook(bookId)
     fun observeChapters(bookId: Long): Flow<List<Chapter>> = chapters.observeForBook(bookId)
     fun observeNotes(bookId: Long): Flow<List<Note>> = notes.observeForBook(bookId)
 
@@ -28,6 +30,13 @@ class WriterRepository(private val database: AppDatabase) {
     suspend fun createChapter(bookId: Long, title: String): Long {
         val id = System.currentTimeMillis()
         chapters.save(Chapter(id = id, bookId = bookId, title = title.ifBlank { "新章节" }, content = "", position = chapters.nextPosition(bookId)))
+        books.touch(bookId, System.currentTimeMillis())
+        return id
+    }
+
+    suspend fun createVolume(bookId: Long, title: String): Long {
+        val id = System.currentTimeMillis()
+        volumes.save(Volume(id, bookId, title.ifBlank { "新卷" }, volumes.nextPosition(bookId)))
         books.touch(bookId, System.currentTimeMillis())
         return id
     }
@@ -54,6 +63,10 @@ class WriterRepository(private val database: AppDatabase) {
     }
 
     suspend fun saveNote(note: Note) = notes.save(note)
+
+    suspend fun updateChapterStatus(chapterId: Long, status: ChapterStatus) {
+        chapters.updateStatus(chapterId, status, System.currentTimeMillis())
+    }
 
     private fun countWords(text: String): Int {
         var count = 0

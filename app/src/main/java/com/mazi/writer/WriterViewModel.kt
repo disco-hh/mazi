@@ -13,6 +13,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     private val selectedBookId = MutableStateFlow<Long?>(null)
     val chapters = selectedBookId.filterNotNull().flatMapLatest(repository::observeChapters)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val volumes = selectedBookId.filterNotNull().flatMapLatest(repository::observeVolumes)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val notes = selectedBookId.filterNotNull().flatMapLatest(repository::observeNotes)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val selectedChapterId = MutableStateFlow<Long?>(null)
@@ -33,6 +35,9 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     fun createChapter(title: String) = viewModelScope.launch {
         selectedBookId.value?.let { selectedChapterId.value = repository.createChapter(it, title) }
     }
+    fun createVolume(title: String) = viewModelScope.launch {
+        selectedBookId.value?.let { repository.createVolume(it, title) }
+    }
     fun createNote(title: String, detail: String, type: NoteType) = viewModelScope.launch {
         selectedBookId.value?.let { repository.createNote(it, title, detail, type) }
     }
@@ -40,5 +45,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
         val chapter = selectedChapter.value ?: return
         saveJob?.cancel()
         saveJob = viewModelScope.launch { delay(450); repository.updateChapterContent(chapter, content) }
+    }
+    fun updateStatus(status: ChapterStatus) = viewModelScope.launch {
+        selectedChapter.value?.let { repository.updateChapterStatus(it.id, status) }
     }
 }

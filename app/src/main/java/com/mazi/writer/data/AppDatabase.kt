@@ -17,6 +17,7 @@ class Converters {
 @Database(entities = [Book::class, Volume::class, Chapter::class, Note::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
+    abstract fun volumeDao(): VolumeDao
     abstract fun chapterDao(): ChapterDao
     abstract fun noteDao(): NoteDao
 
