@@ -31,6 +31,7 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     private var saveJob: Job? = null
     private val _searchResults = MutableStateFlow<List<Chapter>>(emptyList())
     val searchResults: StateFlow<List<Chapter>> = _searchResults.asStateFlow()
+    private var replaceUndo: WriterRepository.ReplaceUndo? = null
 
     init {
         viewModelScope.launch {
@@ -62,6 +63,8 @@ class WriterViewModel(private val repository: WriterRepository) : ViewModel() {
     fun search(query: String) = viewModelScope.launch {
         _searchResults.value = selectedBookId.value?.takeIf { query.isNotBlank() }?.let { repository.searchChapters(it, query) }.orEmpty()
     }
+    fun replaceAll(find: String, replacement: String, ignoreCase: Boolean) = viewModelScope.launch { selectedBookId.value?.let { replaceUndo = repository.replaceAll(it, find, replacement, ignoreCase) } }
+    fun undoReplace() = viewModelScope.launch { replaceUndo?.let { repository.undoReplace(it); replaceUndo = null } }
     fun export(resolver: ContentResolver, uri: Uri, format: ExportFormat) = viewModelScope.launch {
         selectedBookId.value?.let { id -> repository.exportPayload(id)?.let { (book, chapters) -> BookExporter.write(resolver, uri, BookExporter.render(book, chapters, format)) } }
     }

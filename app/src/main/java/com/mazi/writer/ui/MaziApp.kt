@@ -144,8 +144,10 @@ fun MaziApp(viewModel: WriterViewModel) {
 
 @Composable private fun SearchDialog(viewModel: WriterViewModel, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
+    var replacement by remember { mutableStateOf("") }
+    var ignoreCase by remember { mutableStateOf(true) }
     val results by viewModel.searchResults.collectAsStateWithLifecycle()
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("搜索当前作品") }, text = { Column { OutlinedTextField(value = query, onValueChange = { query = it; viewModel.search(it) }, label = { Text("关键词") }, singleLine = true); Spacer(Modifier.height(12.dp)); if (query.isNotBlank()) Text("找到 ${results.size} 个章节", color = Muted, fontSize = 13.sp); results.take(5).forEach { chapter -> TextButton(onClick = { viewModel.selectChapter(chapter.id); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth()) { Text(chapter.title); Text(chapter.content.take(42).ifBlank { "标题匹配" }, color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) } } } } }, confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } })
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("搜索与替换") }, text = { Column { OutlinedTextField(value = query, onValueChange = { query = it; viewModel.search(it) }, label = { Text("查找") }, singleLine = true); OutlinedTextField(value = replacement, onValueChange = { replacement = it }, label = { Text("替换为") }, singleLine = true); Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = ignoreCase, onCheckedChange = { ignoreCase = it }); Text("不区分大小写") }; if (query.isNotBlank()) Text("找到 ${results.size} 个章节", color = Muted, fontSize = 13.sp); results.take(4).forEach { chapter -> TextButton(onClick = { viewModel.selectChapter(chapter.id); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text(chapter.title) } } } }, confirmButton = { Row { TextButton(onClick = { viewModel.replaceAll(query, replacement, ignoreCase); onDismiss() }, enabled = query.isNotBlank()) { Text("全部替换") }; TextButton(onClick = onDismiss) { Text("关闭") } } }, dismissButton = { TextButton(onClick = { viewModel.undoReplace(); onDismiss() }) { Text("撤销上次替换") } })
 }
 
 private fun ChapterStatus.label() = when (this) { ChapterStatus.DRAFT -> "草稿"; ChapterStatus.REVISING -> "修改中"; ChapterStatus.DONE -> "完成" }

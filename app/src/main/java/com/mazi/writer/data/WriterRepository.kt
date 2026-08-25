@@ -5,6 +5,7 @@ import com.mazi.writer.export.NovelBackup
 import kotlinx.coroutines.flow.Flow
 
 class WriterRepository(private val database: AppDatabase) {
+    data class ReplaceUndo(val originals: List<Chapter>, val replacements: Int)
     private val books = database.bookDao()
     private val volumes = database.volumeDao()
     private val chapters = database.chapterDao()
@@ -85,6 +86,23 @@ class WriterRepository(private val database: AppDatabase) {
         chapters.updateStatus(chapterId, status, System.currentTimeMillis())
     }
 
+    suspend fun replaceAll(bookId: Long, find: String, replacement: String, ignoreCase: Boolean): ReplaceUndo {
+        require(find.isNotBlank())
+        val originals = chapters.getForBook(bookId).filter { it.content.contains(find, ignoreCase) || it.title.contains(find, ignoreCase) }
+        var replacements = 0
+        database.withTransaction {
+            originals.forEach { chapter ->
+                val newTitle = chapter.title.replace(find, replacement, ignoreCase = ignoreCase)
+                val newContent = chapter.content.replace(find, replacement, ignoreCase = ignoreCase)
+                replacements += occurrences(chapter.title, find, ignoreCase) + occurrences(chapter.content, find, ignoreCase)
+                chapters.save(chapter.copy(title = newTitle, content = newContent, wordCount = countWords(newContent), updatedAt = System.currentTimeMillis()))
+            }
+        }
+        return ReplaceUndo(originals, replacements)
+    }
+
+    suspend fun undoReplace(undo: ReplaceUndo) = database.withTransaction { undo.originals.forEach(chapters::save) }
+
     private fun countWords(text: String): Int {
         var count = 0
         var inLatinWord = false
@@ -97,4 +115,5 @@ class WriterRepository(private val database: AppDatabase) {
         }
         return count
     }
+    private fun occurrences(text: String, target: String, ignoreCase: Boolean): Int { var index = 0; var count = 0; while (true) { index = text.indexOf(target, index, ignoreCase); if (index < 0) return count; count++; index += target.length } }
 }
